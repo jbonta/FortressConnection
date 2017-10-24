@@ -84,7 +84,11 @@ class FortressConnection(LoggerMixin):
         return self.alarming
 
     def sendCommand(self, msg):
-        self._send_to_socket(COMMAND + msg + b'\x00' * 78)
+        try:
+            self._send_to_socket(COMMAND + msg + b'\x00' * 78)
+        except:
+            self._info("error occurred in sending command", msg)
+            self._debug(traceback.format_exc())
 
     def work(self):
         try:
@@ -199,6 +203,8 @@ class FortressConnection(LoggerMixin):
             self.onAlarmChange(self.alarming, zone)
 
     def _set_arm_status(self, cur_arm_status):
+        if self.arm_status == cur_arm_status:
+            return
         self.arm_status = cur_arm_status
         if self.arm_status == FortressConnection.ARM:
             self._info("🔒  Arm status: Armed")
@@ -223,10 +229,14 @@ class FortressConnection(LoggerMixin):
         self.count = 0
         self.arm_status = None
         self._set_alarming(None)
-        if self.fortress_socket:
-            self.fortress_socket.shutdown(socket.SHUT_WR)
-            self.fortress_socket.close()
-            self.fortress_socket = None
+        try:
+            if self.fortress_socket:
+                self.fortress_socket.shutdown(socket.SHUT_WR)
+                self.fortress_socket.close()
+                self.fortress_socket = None
+        except:
+            self._info("error occurred in teardown")
+            self._debug(traceback.format_exc())
         self._clear_timers()
 
     def _reconnect(self, more_info = ''):
